@@ -379,6 +379,12 @@ def _build_run_subparser(subparsers, base_subparser):
         parents=[base_subparser],
         help="Compile SQL and execute against the current "
         "target database.")
+
+    run_sub.add_argument(
+        '--json-output',
+        action='store_true',
+        help='''Rather than the nice human readable output, stream output as
+        JSON.''')
     run_sub.set_defaults(cls=run_task.RunTask, which='run')
     return run_sub
 
