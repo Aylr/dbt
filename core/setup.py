@@ -54,5 +54,6 @@ setup(
         'jsonschema>=3.0.1,<4',
         'json-rpc>=1.12,<2',
         'werkzeug>=0.14.1,<0.15',
+        'python-json-logger==0.1.11',
     ]
 )

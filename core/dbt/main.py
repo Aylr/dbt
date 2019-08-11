@@ -1,5 +1,5 @@
 from dbt.logger import initialize_logger, GLOBAL_LOGGER as logger, \
-    logger_initialized, log_cache_events
+    logger_initialized, log_cache_events, json_logger
 
 import argparse
 import os.path
@@ -199,6 +199,8 @@ def run_from_args(parsed):
 
     parsed.cls.pre_init_hook()
     logger.info("Running with dbt{}".format(dbt.version.installed))
+    json_logger.info({"dbt_version": "Running with dbt{}".format(dbt.version.installed)})
+
 
     # this will convert DbtConfigErrors into RuntimeExceptions
     task = parsed.cls.from_args(args=parsed)

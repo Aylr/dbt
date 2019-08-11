@@ -6,6 +6,7 @@ import os
 import sys
 
 import colorama
+from pythonjsonlogger import jsonlogger
 
 # Colorama needs some help on windows because we're using logger.info
 # intead of print(). If the Windows env doesn't have a TERM var set,
@@ -59,6 +60,15 @@ logger = logging.getLogger('dbt')
 logger.addHandler(stdout_handler)
 logger.setLevel(DEBUG)
 logging.getLogger().setLevel(CRITICAL)
+
+
+# create a global json logger for dbt
+json_logger = logging.getLogger('json')
+json_logger.setLevel(DEBUG)
+json_handler = logging.StreamHandler(stream=sys.stdout)
+json_handler.setLevel(DEBUG)
+json_handler.setFormatter(jsonlogger.JsonFormatter())
+json_logger.addHandler(json_handler)
 
 # Quiet these down in the logs
 logging.getLogger('botocore').setLevel(INFO)
