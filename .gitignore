@@ -76,3 +76,10 @@ target/
 
 # Vim
 *.sw*
+
+# Jetbrains IDEs
+.idea
+
+# Virutalenvs
+venv/
+.venv/
