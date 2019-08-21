@@ -1,6 +1,3 @@
-from dbt.logger import initialize_logger, GLOBAL_LOGGER as logger, \
-    logger_initialized, log_cache_events, json_logger
-
 import argparse
 import os.path
 import sys
@@ -75,6 +72,8 @@ class DBTArgumentParser(argparse.ArgumentParser):
 
 
 def main(args=None):
+    # TODO deal with these exception handling logger use cases - import them for now
+    from dbt.logger import GLOBAL_LOGGER as logger, logger_initialized
     if args is None:
         args = sys.argv[1:]
 
@@ -155,7 +154,7 @@ def handle_and_check(args):
 
 
 @contextmanager
-def track_run(task):
+def track_run(task, logger):
     dbt.tracking.track_invocation_start(config=task.config, args=task.args)
     try:
         yield
@@ -187,19 +186,29 @@ A future version of dbt will drop support for Python 2.7.
 def _python2_compatibility_message():
     if dbt.compat.WHICH_PYTHON != 2:
         return
-
+    # TODO deal with this non-existent logger
     logger.critical(
         dbt.ui.printer.red('DEPRECATION: ') + _PYTHON_27_WARNING
     )
 
 
 def run_from_args(parsed):
+    # TODO super janky proof of concept.
+    if parsed.json_output:
+        # TODO remove prints
+        print('Loading JSON logger')
+        from dbt.logger import initialize_logger, GLOBAL_JSON_LOGGER as logger, logger_initialized, log_cache_events
+    else:
+        from dbt.logger import initialize_logger, GLOBAL_LOGGER as logger, logger_initialized, log_cache_events
+        # TODO remove prints
+        print("Loading standard logger")
+
+
     log_cache_events(getattr(parsed, 'log_cache_events', False))
     flags.set_from_args(parsed)
 
     parsed.cls.pre_init_hook()
     logger.info("Running with dbt{}".format(dbt.version.installed))
-    json_logger.info({"dbt_version": "Running with dbt{}".format(dbt.version.installed)})
 
 
     # this will convert DbtConfigErrors into RuntimeExceptions
@@ -209,12 +218,12 @@ def run_from_args(parsed):
     log_path = None
     if task.config is not None:
         log_path = getattr(task.config, 'log_path', None)
-    initialize_logger(parsed.debug, log_path)
+    initialize_logger(logger=logger, debug_mode=parsed.debug, path=log_path)
     logger.debug("Tracking: {}".format(dbt.tracking.active_user.state()))
 
     results = None
 
-    with track_run(task):
+    with track_run(task, logger):
         results = task.run()
 
     return task, results

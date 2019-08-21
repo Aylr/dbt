@@ -8,94 +8,98 @@ import sys
 import colorama
 from pythonjsonlogger import jsonlogger
 
-# Colorama needs some help on windows because we're using logger.info
-# intead of print(). If the Windows env doesn't have a TERM var set,
-# then we should override the logging stream to use the colorama
-# converter. If the TERM var is set (as with Git Bash), then it's safe
-# to send escape characters and no log handler injection is needed.
-colorama_stdout = sys.stdout
-colorama_wrap = True
-
-colorama.init(wrap=colorama_wrap)
-
 DEBUG = logging.DEBUG
-NOTICE = 15
-INFO = logging.INFO
-WARNING = logging.WARNING
-ERROR = logging.ERROR
-CRITICAL = logging.CRITICAL
 
-logging.addLevelName(NOTICE, 'NOTICE')
+def build_global_logger():
+    # Colorama needs some help on windows because we're using logger.info
+    # intead of print(). If the Windows env doesn't have a TERM var set,
+    # then we should override the logging stream to use the colorama
+    # converter. If the TERM var is set (as with Git Bash), then it's safe
+    # to send escape characters and no log handler injection is needed.
+    colorama_stdout = sys.stdout
+    colorama_wrap = True
 
+    colorama.init(wrap=colorama_wrap)
 
-class Logger(logging.Logger):
-    def notice(self, msg, *args, **kwargs):
-        if self.isEnabledFor(NOTICE):
-            self._log(NOTICE, msg, args, **kwargs)
+    NOTICE = 15
+    INFO = logging.INFO
+    WARNING = logging.WARNING
+    ERROR = logging.ERROR
+    CRITICAL = logging.CRITICAL
 
-
-logging.setLoggerClass(Logger)
-
-
-if sys.platform == 'win32' and not os.environ.get('TERM'):
-    colorama_wrap = False
-    colorama_stdout = colorama.AnsiToWin32(sys.stdout).stream
-
-elif sys.platform == 'win32':
-    colorama_wrap = False
-
-colorama.init(wrap=colorama_wrap)
-
-# create a global console logger for dbt
-stdout_handler = logging.StreamHandler(colorama_stdout)
-stdout_handler.setFormatter(logging.Formatter('%(message)s'))
-stdout_handler.setLevel(NOTICE)
-
-stderr_handler = logging.StreamHandler(sys.stderr)
-stderr_handler.setFormatter(logging.Formatter('%(message)s'))
-stderr_handler.setLevel(WARNING)
+    logging.addLevelName(NOTICE, 'NOTICE')
 
 
-logger = logging.getLogger('dbt')
-logger.addHandler(stdout_handler)
-logger.setLevel(DEBUG)
-logging.getLogger().setLevel(CRITICAL)
+    class Logger(logging.Logger):
+        def notice(self, msg, *args, **kwargs):
+            if self.isEnabledFor(NOTICE):
+                self._log(NOTICE, msg, args, **kwargs)
 
 
-# create a global json logger for dbt
-json_logger = logging.getLogger('json')
-json_logger.setLevel(DEBUG)
-json_handler = logging.StreamHandler(stream=sys.stdout)
-json_handler.setLevel(DEBUG)
-json_handler.setFormatter(jsonlogger.JsonFormatter())
-json_logger.addHandler(json_handler)
-
-# Quiet these down in the logs
-logging.getLogger('botocore').setLevel(INFO)
-logging.getLogger('requests').setLevel(INFO)
-logging.getLogger('urllib3').setLevel(INFO)
-logging.getLogger('google').setLevel(INFO)
-logging.getLogger('snowflake.connector').setLevel(INFO)
-logging.getLogger('parsedatetime').setLevel(INFO)
-# we never want to seek werkzeug logs
-logging.getLogger('werkzeug').setLevel(CRITICAL)
-
-# provide this for the cache.
-CACHE_LOGGER = logging.getLogger('dbt.cache')
-# add a dummy handler to avoid `No handlers could be found for logger`
-nothing_handler = logging.StreamHandler()
-nothing_handler.setLevel(CRITICAL)
-CACHE_LOGGER.addHandler(nothing_handler)
-# provide this for RPC connection logging
-RPC_LOGGER = logging.getLogger('dbt.rpc')
+    logging.setLoggerClass(Logger)
 
 
-# Redirect warnings through our logging setup
-# They will be logged to a file below
-logging.captureWarnings(True)
-dbt.compat.suppress_warnings()
+    if sys.platform == 'win32' and not os.environ.get('TERM'):
+        colorama_wrap = False
+        colorama_stdout = colorama.AnsiToWin32(sys.stdout).stream
 
-initialized = False
+    elif sys.platform == 'win32':
+        colorama_wrap = False
+
+    colorama.init(wrap=colorama_wrap)
+
+    # create a global console logger for dbt
+    stdout_handler = logging.StreamHandler(colorama_stdout)
+    stdout_handler.setFormatter(logging.Formatter('%(message)s'))
+    stdout_handler.setLevel(NOTICE)
+
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setFormatter(logging.Formatter('%(message)s'))
+    stderr_handler.setLevel(WARNING)
+
+
+    logger = logging.getLogger('dbt')
+    logger.addHandler(stdout_handler)
+    logger.setLevel(DEBUG)
+    logging.getLogger().setLevel(CRITICAL)
+
+
+    # create a global json logger for dbt
+    json_logger = logging.getLogger('json')
+    json_logger.setLevel(DEBUG)
+    # json_handler = logging.StreamHandler(stream=sys.stdout)
+    json_handler = logging.StreamHandler()
+    json_handler.setLevel(DEBUG)
+    json_handler.setFormatter(jsonlogger.JsonFormatter())
+    json_logger.addHandler(json_handler)
+
+    # Quiet these down in the logs
+    logging.getLogger('botocore').setLevel(INFO)
+    logging.getLogger('requests').setLevel(INFO)
+    logging.getLogger('urllib3').setLevel(INFO)
+    logging.getLogger('google').setLevel(INFO)
+    logging.getLogger('snowflake.connector').setLevel(INFO)
+    logging.getLogger('parsedatetime').setLevel(INFO)
+    # we never want to seek werkzeug logs
+    logging.getLogger('werkzeug').setLevel(CRITICAL)
+
+    # provide this for the cache.
+    CACHE_LOGGER = logging.getLogger('dbt.cache')
+    # add a dummy handler to avoid `No handlers could be found for logger`
+    nothing_handler = logging.StreamHandler()
+    nothing_handler.setLevel(CRITICAL)
+    CACHE_LOGGER.addHandler(nothing_handler)
+    # provide this for RPC connection logging
+    RPC_LOGGER = logging.getLogger('dbt.rpc')
+
+
+    # Redirect warnings through our logging setup
+    # They will be logged to a file below
+    logging.captureWarnings(True)
+    dbt.compat.suppress_warnings()
+
+    initialized = False
+    return logger, json_logger, RPC_LOGGER, CACHE_LOGGER, initialized
 
 
 def _swap_handler(logger, old, new):
@@ -132,8 +136,8 @@ def default_formatter():
     return logging.Formatter('%(asctime)-18s (%(threadName)s): %(message)s')
 
 
-def initialize_logger(debug_mode=False, path=None):
-    global initialized, logger, stdout_handler, stderr_handler
+def initialize_logger(logger=None, debug_mode=False, path=None):
+    global initialized, stdout_handler, stderr_handler
 
     if initialized:
         return
@@ -171,10 +175,16 @@ def initialize_logger(debug_mode=False, path=None):
         warning_logger.setLevel(DEBUG)
 
     initialized = True
+    # TODO deal with initialized
+    return initialized
 
 
 def logger_initialized():
-    return initialized
+    try:
+        return initialized
+    except NameError:
+        # TODO unhandled code path
+        print("TODO unhandled code path")
 
 
 def log_cache_events(flag):
@@ -182,8 +192,8 @@ def log_cache_events(flag):
     """
     CACHE_LOGGER.propagate = flag
 
-
-GLOBAL_LOGGER = logger
+# TODO factor this down to be less horrific
+GLOBAL_LOGGER, GLOBAL_JSON_LOGGER, RPC_LOGGER, CACHE_LOGGER, initialized = build_global_logger()
 
 
 class QueueFormatter(logging.Formatter):
