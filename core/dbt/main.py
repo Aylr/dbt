@@ -105,7 +105,7 @@ def main(args=None):
             logger.error(traceback.format_exc())
         exit_code = ExitCodes.UnhandledError
 
-    _python2_compatibility_message()
+    _python2_compatibility_message(logger)
 
     sys.exit(exit_code)
 
@@ -183,26 +183,21 @@ A future version of dbt will drop support for Python 2.7.
 '''.strip()
 
 
-def _python2_compatibility_message():
+def _python2_compatibility_message(logger):
     if dbt.compat.WHICH_PYTHON != 2:
         return
-    # TODO deal with this non-existent logger
     logger.critical(
         dbt.ui.printer.red('DEPRECATION: ') + _PYTHON_27_WARNING
     )
 
 
 def run_from_args(parsed):
-    # TODO super janky proof of concept.
-    if parsed.json_output:
-        # TODO remove prints
-        print('Loading JSON logger')
-        from dbt.logger import initialize_logger, GLOBAL_JSON_LOGGER as logger, logger_initialized, log_cache_events
-    else:
-        from dbt.logger import initialize_logger, GLOBAL_LOGGER as logger, logger_initialized, log_cache_events
-        # TODO remove prints
-        print("Loading standard logger")
+    # TODO super janky proof of concept of switchable loggers
+    from dbt.logger import GLOBAL_LOGGER as logger, initialize_logger, log_cache_events
 
+    if issubclass(parsed.cls, dbt.task.run.RunTask) and parsed.json_output:
+        # Use the json logger for remainder of the run
+        from dbt.logger import GLOBAL_JSON_LOGGER as logger
 
     log_cache_events(getattr(parsed, 'log_cache_events', False))
     flags.set_from_args(parsed)

@@ -9,8 +9,10 @@ import colorama
 from pythonjsonlogger import jsonlogger
 
 DEBUG = logging.DEBUG
+initialized = False
 
 def build_global_logger():
+    global initialized
     # Colorama needs some help on windows because we're using logger.info
     # intead of print(). If the Windows env doesn't have a TERM var set,
     # then we should override the logging stream to use the colorama
@@ -67,9 +69,8 @@ def build_global_logger():
     # create a global json logger for dbt
     json_logger = logging.getLogger('json')
     json_logger.setLevel(DEBUG)
-    # json_handler = logging.StreamHandler(stream=sys.stdout)
     json_handler = logging.StreamHandler()
-    json_handler.setLevel(DEBUG)
+    json_handler.setLevel(NOTICE)
     json_handler.setFormatter(jsonlogger.JsonFormatter())
     json_logger.addHandler(json_handler)
 
@@ -99,7 +100,7 @@ def build_global_logger():
     dbt.compat.suppress_warnings()
 
     initialized = False
-    return logger, json_logger, RPC_LOGGER, CACHE_LOGGER, initialized
+    return logger, json_logger, RPC_LOGGER, CACHE_LOGGER
 
 
 def _swap_handler(logger, old, new):
@@ -175,16 +176,11 @@ def initialize_logger(logger=None, debug_mode=False, path=None):
         warning_logger.setLevel(DEBUG)
 
     initialized = True
-    # TODO deal with initialized
     return initialized
 
 
 def logger_initialized():
-    try:
-        return initialized
-    except NameError:
-        # TODO unhandled code path
-        print("TODO unhandled code path")
+    return initialized
 
 
 def log_cache_events(flag):
@@ -193,7 +189,7 @@ def log_cache_events(flag):
     CACHE_LOGGER.propagate = flag
 
 # TODO factor this down to be less horrific
-GLOBAL_LOGGER, GLOBAL_JSON_LOGGER, RPC_LOGGER, CACHE_LOGGER, initialized = build_global_logger()
+GLOBAL_LOGGER, GLOBAL_JSON_LOGGER, RPC_LOGGER, CACHE_LOGGER = build_global_logger()
 
 
 class QueueFormatter(logging.Formatter):
